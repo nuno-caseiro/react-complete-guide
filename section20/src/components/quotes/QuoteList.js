@@ -15,10 +15,8 @@ const isSortingAscending = queryParams.get('sort') === 'asc'
 const changeSortingHandler = () => {
   history.push({
     pathname: location.pathname,
-    search: `?sort= ${(isSortingAscending ? 'desc' : 'asc')}`
+    search: `?sort=${(isSortingAscending ? 'desc' : 'asc')}`
   })
-
-  
 }
 
 const sortQuotes= (quotes, ascending) => {
