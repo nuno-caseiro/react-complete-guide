@@ -1,35 +1,97 @@
-import React, {useState} from 'react';
+import React, { useEffect, useCallback, useReducer } from "react";
 
-import IngredientForm from './IngredientForm';
-import IngredientsList from "./IngredientList"
-import Search from './Search';
+import IngredientForm from "./IngredientForm";
+import IngredientsList from "./IngredientList";
+import Search from "./Search";
+import ErrorModal from "../UI/ErrorModal";
+import useHttp from "../../hooks/http";
 
-function Ingredients() {
-  const [ingredients, setIngredients] = useState([])
-
-  const addIngredientHandler = (ingredient) => {
-    //setIngredients(ingredients.concat(ingredient))
-    console.log(ingredient)
-    setIngredients(prevState => ([...prevState, {id: Math.random().toString(), ...ingredient}]))
-
+//current ingredients or state
+const ingredientsReducer = (currentsIngredients, action) => {
+  switch (action.type) {
+    case "SET":
+      console.log(action.ingredients)
+      return action.ingredients;
+    case "ADD":
+      return [...currentsIngredients, action.ingredient];
+    case "DELETE":
+      return currentsIngredients.filter((ing) => ing.id !== action.id);
+    default:
+      throw new Error("Should not get there!");
   }
+};
 
-  const removeIngredientHandler = (id) => {
+const Ingredients = () => {
+  const [userIngredients, dispatch] = useReducer(ingredientsReducer, []);
+  const { loading, error, data, sendRequest, reqExtra, reqIdentifier, clear } =
+    useHttp();
 
-  }
 
-  console.log(ingredients)
+  useEffect(() => {
+    if (!loading && !error && reqIdentifier === "REMOVE_INGREDIENT") {
+      dispatch({ type: "DELETE", id: reqExtra });
+    } else if (!loading && !error && reqIdentifier === "ADD_INGREDIENT") {
+      console.log(data);
+      dispatch({
+        type: "ADD",
+        ingredient: { id: data.name, ...reqExtra },
+      });
+    }
+  }, [data, loading, reqExtra, reqIdentifier, error]);
+
+  const addIngredientHandler = useCallback(
+    (ingredient) => {
+      sendRequest(
+        "https://react-complete-guide-bc77b-default-rtdb.europe-west1.firebasedatabase.app/ingredients.json",
+        "POST",
+        JSON.stringify(ingredient),
+        ingredient,
+        "ADD_INGREDIENT"
+      );
+    },
+    [sendRequest]
+  );
+
+  const loadFilteredIngredients = useCallback((loadedIngredients) => {
+    //setIngredients(loadedIngredients);
+    dispatch({ type: "SET", ingredients: loadedIngredients });
+  }, []);
+
+  const removeIngredientHandler = useCallback(
+    (id) => {
+      sendRequest(
+        `https://react-complete-guide-bc77b-default-rtdb.europe-west1.firebasedatabase.app/ingredients/${id}.json`,
+        "DELETE",
+        null,
+        id,
+        "REMOVE_INGREDIENT"
+      );
+    },
+    [sendRequest]
+  );
+
+  //   const ingredientList = useMemo(() => <IngredientsList
+  //   ingredients={userIngredients}
+  //   onRemoveItem={removeIngredientHandler}
+  // />, [userIngredients,removeIngredientHandler])
 
   return (
     <div className="App">
-      <IngredientForm onAddIngredient={addIngredientHandler}/>
+      {error && <ErrorModal onClose={clear}>{error}</ErrorModal>}
+      <IngredientForm
+        onAddIngredient={addIngredientHandler}
+        loading={loading}
+      />
 
       <section>
-        <Search />
-        <IngredientsList ingredients={ingredients} onRemoveItem={removeIngredientHandler}/>
+        <Search onLoadIngredients={loadFilteredIngredients} />
+        <IngredientsList
+          ingredients={userIngredients}
+          onRemoveItem={removeIngredientHandler}
+        />
       </section>
     </div>
   );
-}
+};
 
 export default Ingredients;
